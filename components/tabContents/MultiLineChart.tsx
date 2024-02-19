@@ -14,10 +14,10 @@ import {
   ValueType,
   NameType,
 } from "recharts/types/component/DefaultTooltipContent";
-import { PaperTrailLogData } from "@/lib/types/papertrail";
+import { LogEntry, PaperTrailLogData } from "@/lib/types/papertrail";
 
 interface Props {
-  data: PaperTrailLogData[];
+  data: LogEntry[];
 }
 
 type LineChartData = {
@@ -27,15 +27,6 @@ type LineChartData = {
 };
 
 export function MultiLineChart(props: Props) {
-  const lineChartDatas: LineChartData[] = props.data.map((data) => {
-    return {
-      name: data.message.path,
-      date: data.generatedAt,
-      service: data.message.service,
-    };
-  });
-  console.log(lineChartDatas);
-
   const CustomTooltip = ({
     active,
     payload,
@@ -60,7 +51,7 @@ export function MultiLineChart(props: Props) {
       <LineChart
         width={500}
         height={300}
-        data={lineChartDatas}
+        data={props.data}
         margin={{
           top: 5,
           right: 30,

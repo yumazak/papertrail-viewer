@@ -1,4 +1,4 @@
-import { PaperTrailLogData } from "@/lib/types/papertrail";
+import { LogEntry, PaperTrailLogData } from "@/lib/types/papertrail";
 import {
   ColumnDef,
   SortingState,
@@ -25,7 +25,7 @@ interface DataTableProps<TData, TValue> {
 }
 
 interface Props {
-  data: PaperTrailLogData[];
+  data: LogEntry[];
 }
 interface GroupedData {
   path: string;
@@ -80,15 +80,11 @@ export function DataTable(props: Props) {
     }
 
     acc[item.key].count += 1;
-    acc[item.key].maxService = Math.max(
-      acc[item.key].maxService,
-      item.message.service
-    );
+    acc[item.key].maxService = Math.max(acc[item.key].maxService, item.service);
 
     // 平均値の更新
     const totalService =
-      acc[item.key].avgService * (acc[item.key].count - 1) +
-      item.message.service;
+      acc[item.key].avgService * (acc[item.key].count - 1) + item.service;
     acc[item.key].avgService = totalService / acc[item.key].count;
 
     return acc;

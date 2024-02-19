@@ -7,15 +7,19 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import React, { useState, ChangeEvent } from "react";
 import Papa, { ParseResult } from "papaparse";
-import { PaperTrailLogData } from "@/lib/types/papertrail";
+import { LogEntry, PaperTrailLogData } from "@/lib/types/papertrail";
 import { MultiLineChart } from "@/components/tabContents/MultiLineChart";
 import { DataTable } from "@/components/tabContents/DataTable";
 import { BarChartContent } from "@/components/tabContents/BarChartContent";
 
+function simplifyUrlPath(url: string): string {
+  const simplifiedUrl = url.replace(/\?.*$/, "").replace(/\/U[\da-fA-F]+$/, "");
+
+  return simplifiedUrl;
+}
+
 export default function Home() {
-  const [paperTrailLogData, setPaperTrailLogData] = useState<
-    PaperTrailLogData[]
-  >([]);
+  const [paperTrailLogData, setPaperTrailLogData] = useState<LogEntry[]>([]);
   const tabNames = ["Chart", "DataTable"];
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -31,48 +35,46 @@ export default function Home() {
         const parsedData = Papa.parse(content, { delimiter });
         const rows = parsedData.data as string[][];
         console.log(parsedData);
-        const paperTrailLogData: PaperTrailLogData[] = rows
-          .filter((row: string[]) => row.length == 10)
-          .filter((row: string[]) => row[9].includes("at="))
-          .map((row: string[]) => {
-            const entries = row[9].split(" ").map((part) => {
-              const [key, value] = part.split("=");
-              return [key, value.replace(/"/g, "")]; // ダブルクォーテーションを削除
-            });
+        let aggregatedData: Record<string, LogEntry> = {};
+        const uuidRegex =
+          /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
-            const data = Object.fromEntries(entries);
+        rows
+          .filter((row) => row.length === 10)
+          .forEach((row: string[]) => {
+            if (!row) return;
+            const idMatch = row[9].match(uuidRegex);
+            const nameMatch = row[9].match(/Started (GET|POST) "(.*?)"/);
+            const responseTimeMatch = row[9].match(/in (\d+)ms/);
+            console.log(responseTimeMatch);
+            if (!idMatch) return;
 
-            const message = {
-              at: data.at,
-              method: data.method,
-              path: data.path,
-              host: data.host,
-              requestId: data.request_id,
-              fwd: data.fwd,
-              dyno: data.dyno,
-              connect: parseInt(data.connect),
-              service: parseInt(data.service),
-              status: parseInt(data.status),
-              bytes: parseInt(data.bytes),
-              protocol: data.protocol,
-            };
+            if (!aggregatedData[idMatch[0]]) {
+              aggregatedData[idMatch[0]] = {
+                name: "",
+                key: "",
+                date: row[1],
+                service: 0,
+              };
+            }
+            if (nameMatch) {
+              aggregatedData[idMatch[0]].name = nameMatch[2];
+              aggregatedData[idMatch[0]].key = `${
+                nameMatch[1]
+              }: ${simplifyUrlPath(nameMatch[2])}`;
+            }
 
-            return {
-              id: row[0],
-              key: `${message.method}:${message.path}`,
-              generatedAt: new Date(row[1]),
-              receivedAt: new Date(row[2]),
-              sourceId: row[3],
-              sourceName: row[4],
-              sourceIp: row[5],
-              facilityName: row[6],
-              severityName: row[7],
-              program: row[8],
-              message: message,
-            };
+            if (responseTimeMatch) {
+              aggregatedData[idMatch[0]].service = parseFloat(
+                responseTimeMatch[1]
+              );
+            }
           });
-        setPaperTrailLogData(paperTrailLogData);
-        console.log(paperTrailLogData);
+
+        setPaperTrailLogData(
+          Object.values(aggregatedData).filter((v) => v.service !== 0)
+        );
+        console.log(aggregatedData);
       };
       reader.readAsText(file);
     }

@@ -12,6 +12,13 @@ export type PaperTrailLogData = {
   message: PaperTrailLogDataMessage;
 };
 
+export interface LogEntry {
+  name: string;
+  key: string;
+  date: string;
+  service: number;
+}
+
 export type PaperTrailLogDataMessage = {
   at: string;
   method: string;
